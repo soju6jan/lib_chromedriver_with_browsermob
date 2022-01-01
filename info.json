@@ -1,0 +1,10 @@
+{
+    "version": "1.0",
+    "name": "lib_chromedriver_with_browsermob",
+    "category_name": "library",
+    "icon": "",
+    "developer": "soju6jan",
+    "description": "chromedriver 사용시 활용하는 라이브러리",
+    "home": "https://github.com/soju6jan/lib_chromedriver_with_browsermob",
+    "more": ""
+}

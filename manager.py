@@ -1,4 +1,4 @@
-import os, sys, time, traceback, base64, requests, platform
+import os, sys, time, traceback, base64, requests, platform, logging
 from selenium import webdriver
 from browsermobproxy import Server
 
@@ -7,11 +7,13 @@ class ChromeDriverWithBrowsermob:
 
     def __init__(self, config):
         self.config = config
-        self.logger = config['logger']
+        self.logger = config.get('logger')
+        if self.logger == None:
+            logging.get_logger(__name__)
         self.driver = None
         self.proxy = None
 
-    def init_driver(self, url=None):
+    def init_driver(self, url=None, headless=None):
         try:
             if self.driver != None:
                 return self.driver
@@ -22,27 +24,29 @@ class ChromeDriverWithBrowsermob:
                 self.driver = webdriver.Remote(chrome_url, options.to_capabilities())
             else:
                 options.add_argument('window-size=1920x1080')
+                chromedriver = self.config.get('chromedriver_path')
                 if platform.system() == 'Windows':
-                    chromedriver = os.path.join(os.path.dirname(__file__), 'bin', 'chromedriver.exe')
-                    if self.config.get('headless', False):
-                        options.add_argument('headless')
+                    if chromedriver == None:
+                        chromedriver = os.path.join(os.path.dirname(__file__), 'bin', 'chromedriver.exe')
+                    if headless == None:
+                        headless = self.config.get('headless', False)
+                    if headless == True:
+                        options.add_argument('--headless')
                 else:
-                    chromedriver = 'chromedriver'
+                    if chromedriver == None:
+                        chromedriver = 'chromedriver'
                     options.add_argument('--headless')
                     options.add_argument('--no-sandbox')
                     options.add_argument("disable-gpu")
                     options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36")
                     options.add_argument("lang=ko_KR")
-            tmp = self.config.get('driver_options')
-            if tmp:
-                for option in tmp:
-                    options.add_argument(option)
+
             chrome_data_path = self.config.get('data_path')
             if chrome_data_path != None:
                 os.makedirs(chrome_data_path, exist_ok=True)
                 options.add_argument(f"user-data-dir={chrome_data_path}")
 
-            if self.config.get('use_proxy'):
+            if self.config.get('use_proxy') == True:
                 self.__create_proxy()
                 options.add_argument(f"--proxy-server={self.proxy.proxy}")
                 options.add_argument('--ignore-certificate-errors')
@@ -57,7 +61,7 @@ class ChromeDriverWithBrowsermob:
         return self.driver
 
     
-    def __driver_stop(self):
+    def driver_stop(self):
         if self.driver is not None:
             try: self.driver.close()
             except: pass
@@ -71,10 +75,11 @@ class ChromeDriverWithBrowsermob:
         if self.proxy is not None:
             return
         if self.proxy_server == None:
+            port = self.config.get('proxy_server_port', 52100)
             if platform.system() == 'Windows':
-                self.proxy_server = Server(path=os.path.join(os.path.dirname(__file__), 'browsermob-proxy-2.1.4', 'bin', 'browsermob-proxy.bat'), options={'port':52100})
+                self.proxy_server = Server(path=os.path.join(os.path.dirname(__file__), 'browsermob-proxy-2.1.4', 'bin', 'browsermob-proxy.bat'), options={'port':port})
             else:
-                self.proxy_server = Server(path=os.path.join(os.path.dirname(__file__), 'browsermob-proxy-2.1.4', 'bin', 'browsermob-proxy'), options={'port':52100})
+                self.proxy_server = Server(path=os.path.join(os.path.dirname(__file__), 'browsermob-proxy-2.1.4', 'bin', 'browsermob-proxy'), options={'port':port})
             self.proxy_server.start()
             self.logger.debug('proxy server start!!')
             time.sleep(1)
@@ -95,7 +100,7 @@ class ChromeDriverWithBrowsermob:
 
     
 
-    def proxy_stop(self):
+    def __proxy_stop(self):
         try:
             self.logger.error("proxy_stop")
             #self.driver_stop()
@@ -111,7 +116,7 @@ class ChromeDriverWithBrowsermob:
 
     
     def close(self):
-        self.__driver_stop()
+        self.driver_stop()
         self.__proxy_stop()
 
 
