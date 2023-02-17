@@ -2,3 +2,4 @@ __pycache__/
 *.pyo
 *.pyc
 *.log
+_manager.py
